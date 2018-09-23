@@ -94,7 +94,7 @@ set_swap_chain_size(int width, int height)
     desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 
-    hr = IDXGISwapChain_GetBuffer(swap_chain, 0, &IID_ID3D11Texture2D, &back_buffer);
+    hr = IDXGISwapChain_GetBuffer(swap_chain, 0, &IID_ID3D11Texture2D, (void **)&back_buffer);
     assert(SUCCEEDED(hr));
 
     hr = ID3D11Device_CreateRenderTargetView(device, (ID3D11Resource *)back_buffer, &desc, &rt_view);
@@ -290,7 +290,7 @@ int main(void)
 
     ID3D11DeviceContext_ClearState(context);
     nk_d3d11_shutdown();
-    ID3D11ShaderResourceView_Release(rt_view);
+    ID3D11RenderTargetView_Release(rt_view);
     ID3D11DeviceContext_Release(context);
     ID3D11Device_Release(device);
     IDXGISwapChain_Release(swap_chain);

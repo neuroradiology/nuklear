@@ -18,6 +18,8 @@
     4. Window section
     5. Layouting section
     6. Groups section
+    7. Tree section
+    8. Properties section
 7. License section
 8. Changelog section
 9. Gallery section
@@ -94,6 +96,7 @@ NK_INCLUDE_DEFAULT_FONT         | Defining this adds the default font: ProggyCle
 NK_INCLUDE_COMMAND_USERDATA     | Defining this adds a userdata pointer into each command. Can be useful for example if you want to provide custom shaders depending on the used widget. Can be combined with the style structures.
 NK_BUTTON_TRIGGER_ON_RELEASE    | Different platforms require button clicks occurring either on buttons being pressed (up to down) or released (down to up). By default this library will react on buttons being pressed, but if you define this it will only trigger if a button is released.
 NK_ZERO_COMMAND_MEMORY          | Defining this will zero out memory for each drawing command added to a drawing queue (inside nk_command_buffer_push). Zeroing command memory is very useful for fast checking (using memcmp) if command buffers are equal and avoid drawing frames when nothing on screen has changed since previous frame.
+NK_UINT_DRAW_INDEX              | Defining this will set the size of vertex index elements when using NK_VERTEX_BUFFER_OUTPUT to 32bit instead of the default of 16bit
 !!! WARNING
     The following flags will pull in the standard C library:
     - NK_INCLUDE_DEFAULT_ALLOCATOR
@@ -109,6 +112,7 @@ NK_ZERO_COMMAND_MEMORY          | Defining this will zero out memory for each dr
     - NK_INCLUDE_DEFAULT_FONT
     - NK_INCLUDE_STANDARD_VARARGS
     - NK_INCLUDE_COMMAND_USERDATA
+    - NK_UINT_DRAW_INDEX
 ### Constants
 Define                          | Description
 --------------------------------|---------------------------------------
@@ -298,8 +302,8 @@ __data__    | Handle with either pointer or index to be passed into every draw c
 ### Input
 The input API is responsible for holding the current input state composed of
 mouse, key and text input states.
-It is worth noting that no direct os or window handling is done in nuklear.
-Instead all input state has to be provided by platform specific code. This in one hand
+It is worth noting that no direct OS or window handling is done in nuklear.
+Instead all input state has to be provided by platform specific code. This on one hand
 expects more work from the user and complicates usage but on the other hand
 provides simple abstraction over a big number of platforms, libraries and other
 already provided functionality.
@@ -353,7 +357,7 @@ __nk_input_unicode__| Adds a single unicode rune into an internal text buffer
 __nk_input_end__    | Ends the input mirroring process by calculating state changes. Don't call any `nk_input_xxx` function referenced above after this call
 #### nk_input_begin
 Begins the input mirroring process by resetting text, scroll
-mouse previous mouse position and movement as well as key state transitions,
+mouse, previous mouse position and movement as well as key state transitions,
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 void nk_input_begin(struct nk_context*);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -371,7 +375,7 @@ __ctx__     | Must point to a previously initialized `nk_context` struct
 __x__       | Must hold an integer describing the current mouse cursor x-position
 __y__       | Must hold an integer describing the current mouse cursor y-position
 #### nk_input_key
-Mirrors state of a specific key to nuklear
+Mirrors the state of a specific key to nuklear
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 void nk_input_key(struct nk_context*, enum nk_keys key, int down);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -395,6 +399,7 @@ __down__    | Must be 0 for key is up and 1 for key is down
 #### nk_input_scroll
 Copies the last mouse scroll value to nuklear. Is generally
 a scroll value. So does not have to come from mouse and could also originate
+TODO finish this sentence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 void nk_input_scroll(struct nk_context *ctx, struct nk_vec2 val);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -441,7 +446,7 @@ __ctx__     | Must point to a previously initialized `nk_context` struct
 __rune__    | UTF-32 unicode codepoint
 #### nk_input_end
 End the input mirroring process by resetting mouse grabbing
-state to ensure the mouse cursor is not grabbed indefinitely.///
+state to ensure the mouse cursor is not grabbed indefinitely.
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 void nk_input_end(struct nk_context *ctx);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -608,6 +613,12 @@ After successfully converting all draw commands just iterate over and execute al
 vertex draw commands:
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 // fill configuration
+struct your_vertex
+{
+    float pos[2]; // important to keep it to 2 floats
+    float uv[2];
+    unsigned char col[4];
+};
 struct nk_convert_config cfg = {};
 static const struct nk_draw_vertex_layout_element vertex_layout[] = {
     {NK_VERTEX_POSITION, NK_FORMAT_FLOAT, NK_OFFSETOF(struct your_vertex, pos)},
@@ -664,7 +675,7 @@ Parameter   | Description
 __ctx__     | must point to an previously initialized `nk_context` struct at the end of a frame
 Returns draw command pointer pointing to the first command inside the draw command list
 #### nk__next
-Returns a draw command list iterator to iterate all draw
+Returns draw command pointer pointing to the next command inside the draw command list
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 const struct nk_command* nk__next(struct nk_context*, const struct nk_command*);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -682,7 +693,7 @@ Parameter   | Description
 ------------|-----------------------------------------------------------
 __ctx__     | Must point to an previously initialized `nk_context` struct at the end of a frame
 __cmd__     | Command pointer initialized to NULL
-Returns draw command pointer pointing to the next command inside the draw command list
+Iterates over each draw command inside the context draw command list
 #### nk_convert
 Converts all internal draw commands into vertex draw commands and fills
 three buffers with vertexes, vertex draw commands and vertex indices. The vertex format
@@ -707,7 +718,7 @@ NK_CONVERT_COMMAND_BUFFER_FULL  | The provided buffer for storing draw commands 
 NK_CONVERT_VERTEX_BUFFER_FULL   | The provided buffer for storing vertices is full or failed to allocate more memory
 NK_CONVERT_ELEMENT_BUFFER_FULL  | The provided buffer for storing indicies is full or failed to allocate more memory
 #### nk__draw_begin
-Returns a draw vertex command buffer iterator to iterate each the vertex draw command buffer
+Returns a draw vertex command buffer iterator to iterate over the vertex draw command buffer
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 const struct nk_draw_command* nk__draw_begin(const struct nk_context*, const struct nk_buffer*);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -750,7 +761,7 @@ __ctx__     | Must point to an previously initialized `nk_context` struct at the
 ### Window
 Windows are the main persistent state used inside nuklear and are life time
 controlled by simply "retouching" (i.e. calling) each window each frame.
-All widgets inside nuklear can only be added inside function pair `nk_begin_xxx`
+All widgets inside nuklear can only be added inside the function pair `nk_begin_xxx`
 and `nk_end`. Calling any widgets outside these two functions will result in an
 assert in debug or no state change in release mode.<br /><br />
 Each window holds frame persistent state like position, size, flags, state tables,
@@ -863,7 +874,7 @@ NK_WINDOW_NO_SCROLLBAR      | Removes the scrollbar from the window
 NK_WINDOW_TITLE             | Forces a header at the top at the window showing the title
 NK_WINDOW_SCROLL_AUTO_HIDE  | Automatically hides the window scrollbar if no user interaction: also requires delta time in `nk_context` to be set each frame
 NK_WINDOW_BACKGROUND        | Always keep window in the background
-NK_WINDOW_SCALE_LEFT        | Puts window scaler in the left-ottom corner instead right-bottom
+NK_WINDOW_SCALE_LEFT        | Puts window scaler in the left-bottom corner instead right-bottom
 NK_WINDOW_NO_INPUT          | Prevents window of scaling, moving or getting focus
 #### nk_collapse_states
 State           | Description
@@ -887,7 +898,7 @@ Returns `true(1)` if the window can be filled up with widgets from this point
 until `nk_end` or `false(0)` otherwise for example if minimized
 #### nk_begin_titled
 Extended window start with separated title and identifier to allow multiple
-windows with same name but not title
+windows with same title but not name
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 int nk_begin_titled(struct nk_context *ctx, const char *name, const char *title, struct nk_rect bounds, nk_flags flags);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -919,7 +930,7 @@ Parameter   | Description
 __ctx__     | Must point to an previously initialized `nk_context` struct
 __name__    | Window identifier
 Returns a `nk_window` struct pointing to the identified window or NULL if
-no window with given name was found
+no window with the given name was found
 #### nk_window_get_bounds
 Returns a rectangle with screen position and size of the currently processed window
 !!! WARNING
@@ -931,7 +942,7 @@ Parameter   | Description
 ------------|-----------------------------------------------------------
 __ctx__     | Must point to an previously initialized `nk_context` struct
 Returns a `nk_rect` struct with window upper left window position and size
-#### nk_window_get_bounds
+#### nk_window_get_position
 Returns the position of the currently processed window.
 !!! WARNING
     Only call this function between calls `nk_begin_xxx` and `nk_end`
@@ -964,23 +975,23 @@ Parameter   | Description
 ------------|-----------------------------------------------------------
 __ctx__     | Must point to an previously initialized `nk_context` struct
 Returns the current window width
-#### nk_window_get_width
+#### nk_window_get_height
 Returns the height of the currently processed window.
 !!! WARNING
     Only call this function between calls `nk_begin_xxx` and `nk_end`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-float nk_window_get_width(const struct nk_context *ctx);
+float nk_window_get_height(const struct nk_context *ctx);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Parameter   | Description
 ------------|-----------------------------------------------------------
 __ctx__     | Must point to an previously initialized `nk_context` struct
-Returns the current window width
+Returns the current window height
 #### nk_window_get_panel
 Returns the underlying panel which contains all processing state of the current window.
 !!! WARNING
     Only call this function between calls `nk_begin_xxx` and `nk_end`
 !!! WARNING
-    Do not keep the returned panel pointer around it is only valid until `nk_end`
+    Do not keep the returned panel pointer around, it is only valid until `nk_end`
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 struct nk_panel* nk_window_get_panel(struct nk_context *ctx);
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1518,7 +1529,7 @@ Parameter   | Description
 __ctx__     | Must point to an previously initialized `nk_context` struct after call `nk_begin_xxx`
 __height__  | Holds height of each widget in row or zero for auto layouting
 __columns__ | Number of widget inside row
-#### nk_layout_row_dynamic
+#### nk_layout_row_static
 Sets current row layout to fill @cols number of widgets
 in row with same @item_width horizontal size. Once called all subsequent widget
 calls greater than @cols will allocate a new row with same layout.
@@ -1661,7 +1672,7 @@ Parameter   | Description
 __ctx__     | Must point to an previously initialized `nk_context` struct after call `nk_layout_space_begin`
 __vec__     | Position to convert from layout space into screen coordinate space
 Returns transformed `nk_vec2` in screen space coordinates
-#### nk_layout_space_to_screen
+#### nk_layout_space_to_local
 Converts vector from layout space into screen space
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
 struct nk_vec2 nk_layout_space_to_local(struct nk_context*, struct nk_vec2);
@@ -1903,6 +1914,7 @@ __ctx__     | Must point to an previously initialized `nk_context` struct
 __type__    | Value from the nk_tree_type section to visually mark a tree node header as either a collapseable UI section or tree node
 __title__   | Label printed in the tree header
 __state__   | Initial tree state value out of nk_collapse_states
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_push_id
 Starts a collapsable UI section with internal state management callable in a look
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -1915,6 +1927,7 @@ __type__    | Value from the nk_tree_type section to visually mark a tree node h
 __title__   | Label printed in the tree header
 __state__   | Initial tree state value out of nk_collapse_states
 __id__      | Loop counter index if this function is called in a loop
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_push_hashed
 Start a collapsable UI section with internal state management with full
 control over internal unique ID used to store state
@@ -1930,6 +1943,7 @@ __state__   | Initial tree state value out of nk_collapse_states
 __hash__    | Memory block or string to generate the ID from
 __len__     | Size of passed memory block or string in __hash__
 __seed__    | Seeding value if this function is called in a loop or default to `0`
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_image_push
 Start a collapsable UI section with image and label header
 !!! WARNING
@@ -1947,6 +1961,7 @@ __type__    | Value from the nk_tree_type section to visually mark a tree node h
 __img__     | Image to display inside the header on the left of the label
 __title__   | Label printed in the tree header
 __state__   | Initial tree state value out of nk_collapse_states
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_image_push_id
 Start a collapsable UI section with image and label header and internal state
 management callable in a look
@@ -1961,6 +1976,7 @@ __img__     | Image to display inside the header on the left of the label
 __title__   | Label printed in the tree header
 __state__   | Initial tree state value out of nk_collapse_states
 __id__      | Loop counter index if this function is called in a loop
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_image_push_hashed
 Start a collapsable UI section with internal state management with full
 control over internal unique ID used to store state
@@ -1977,6 +1993,7 @@ __state__   | Initial tree state value out of nk_collapse_states
 __hash__    | Memory block or string to generate the ID from
 __len__     | Size of passed memory block or string in __hash__
 __seed__    | Seeding value if this function is called in a loop or default to `0`
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_pop
 Ends a collapsabale UI section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -1996,6 +2013,7 @@ __ctx__     | Must point to an previously initialized `nk_context` struct after 
 __type__    | Value from the nk_tree_type section to visually mark a tree node header as either a collapseable UI section or tree node
 __title__   | Label printed in the tree header
 __state__   | Persistent state to update
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_state_image_push
 Start a collapsable UI section with image and label header and external state management
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -2008,6 +2026,7 @@ __img__     | Image to display inside the header on the left of the label
 __type__    | Value from the nk_tree_type section to visually mark a tree node header as either a collapseable UI section or tree node
 __title__   | Label printed in the tree header
 __state__   | Persistent state to update
+Returns `true(1)` if visible and fillable with widgets or `false(0)` otherwise
 #### nk_tree_state_pop
 Ends a collapsabale UI section
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -2016,10 +2035,178 @@ void nk_tree_state_pop(struct nk_context*);
 Parameter   | Description
 ------------|-----------------------------------------------------------
 __ctx__     | Must point to an previously initialized `nk_context` struct after calling `nk_tree_xxx_push_xxx`
-scores --------- */
+### Properties
+Properties are the main value modification widgets in Nuklear. Changing a value
+can be achieved by dragging, adding/removing incremental steps on button click
+or by directly typing a number.
+#### Usage
+Each property requires a unique name for identifaction that is also used for
+displaying a label. If you want to use the same name multiple times make sure
+add a '#' before your name. The '#' will not be shown but will generate a
+unique ID. Each propery also takes in a minimum and maximum value. If you want
+to make use of the complete number range of a type just use the provided
+type limits from `limits.h`. For example `INT_MIN` and `INT_MAX` for
+`nk_property_int` and `nk_propertyi`. In additional each property takes in
+a increment value that will be added or subtracted if either the increment
+decrement button is clicked. Finally there is a value for increment per pixel
+dragged that is added or subtracted from the value.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+int value = 0;
+struct nk_context ctx;
+nk_init_xxx(&ctx, ...);
+while (1) {
+    // Input
+    Event evt;
+    nk_input_begin(&ctx);
+    while (GetEvent(&evt)) {
+        if (evt.type == MOUSE_MOVE)
+            nk_input_motion(&ctx, evt.motion.x, evt.motion.y);
+        else if (evt.type == [...]) {
+            nk_input_xxx(...);
+        }
+    }
+    nk_input_end(&ctx);
+    //
+    // Window
+    if (nk_begin_xxx(...) {
+        // Property
+        nk_layout_row_dynamic(...);
+        nk_property_int(ctx, "ID", INT_MIN, &value, INT_MAX, 1, 1);
+    }
+    nk_end(ctx);
+    //
+    // Draw
+    const struct nk_command *cmd = 0;
+    nk_foreach(cmd, &ctx) {
+    switch (cmd->type) {
+    case NK_COMMAND_LINE:
+        your_draw_line_function(...)
+        break;
+    case NK_COMMAND_RECT
+        your_draw_rect_function(...)
+        break;
+    case ...:
+        // [...]
+    }
+}
+nk_free(&ctx);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#### Reference
+Function            | Description
+--------------------|-------------------------------------------
+nk_property_int     | Integer property directly modifing a passed in value
+nk_property_float   | Float property directly modifing a passed in value
+nk_property_double  | Double property directly modifing a passed in value
+nk_propertyi        | Integer property returning the modified int value
+nk_propertyf        | Float property returning the modified float value
+nk_propertyd        | Double property returning the modified double value
+#### nk_property_int
+Integer property directly modifing a passed in value
+!!! WARNING
+    To generate a unique property ID using the same label make sure to insert
+    a `#` at the beginning. It will not be shown but guarantees correct behavior.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+void nk_property_int(struct nk_context *ctx, const char *name, int min, int *val, int max, int step, float inc_per_pixel);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parameter           | Description
+--------------------|-----------------------------------------------------------
+__ctx__             | Must point to an previously initialized `nk_context` struct after calling a layouting function
+__name__            | String used both as a label as well as a unique identifier
+__min__             | Minimum value not allowed to be underflown
+__val__             | Integer pointer to be modified
+__max__             | Maximum value not allowed to be overflown
+__step__            | Increment added and subtracted on increment and decrement button
+__inc_per_pixel__   | Value per pixel added or subtracted on dragging
+#### nk_property_float
+Float property directly modifing a passed in value
+!!! WARNING
+    To generate a unique property ID using the same label make sure to insert
+    a `#` at the beginning. It will not be shown but guarantees correct behavior.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+void nk_property_float(struct nk_context *ctx, const char *name, float min, float *val, float max, float step, float inc_per_pixel);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parameter           | Description
+--------------------|-----------------------------------------------------------
+__ctx__             | Must point to an previously initialized `nk_context` struct after calling a layouting function
+__name__            | String used both as a label as well as a unique identifier
+__min__             | Minimum value not allowed to be underflown
+__val__             | Float pointer to be modified
+__max__             | Maximum value not allowed to be overflown
+__step__            | Increment added and subtracted on increment and decrement button
+__inc_per_pixel__   | Value per pixel added or subtracted on dragging
+#### nk_property_double
+Double property directly modifing a passed in value
+!!! WARNING
+    To generate a unique property ID using the same label make sure to insert
+    a `#` at the beginning. It will not be shown but guarantees correct behavior.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+void nk_property_double(struct nk_context *ctx, const char *name, double min, double *val, double max, double step, double inc_per_pixel);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parameter           | Description
+--------------------|-----------------------------------------------------------
+__ctx__             | Must point to an previously initialized `nk_context` struct after calling a layouting function
+__name__            | String used both as a label as well as a unique identifier
+__min__             | Minimum value not allowed to be underflown
+__val__             | Double pointer to be modified
+__max__             | Maximum value not allowed to be overflown
+__step__            | Increment added and subtracted on increment and decrement button
+__inc_per_pixel__   | Value per pixel added or subtracted on dragging
+#### nk_propertyi
+Integer property modifing a passed in value and returning the new value
+!!! WARNING
+    To generate a unique property ID using the same label make sure to insert
+    a `#` at the beginning. It will not be shown but guarantees correct behavior.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+int nk_propertyi(struct nk_context *ctx, const char *name, int min, int val, int max, int step, float inc_per_pixel);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parameter           | Description
+--------------------|-----------------------------------------------------------
+__ctx__             | Must point to an previously initialized `nk_context` struct after calling a layouting function
+__name__            | String used both as a label as well as a unique identifier
+__min__             | Minimum value not allowed to be underflown
+__val__             | Current integer value to be modified and returned
+__max__             | Maximum value not allowed to be overflown
+__step__            | Increment added and subtracted on increment and decrement button
+__inc_per_pixel__   | Value per pixel added or subtracted on dragging
+Returns the new modified integer value
+#### nk_propertyf
+Float property modifing a passed in value and returning the new value
+!!! WARNING
+    To generate a unique property ID using the same label make sure to insert
+    a `#` at the beginning. It will not be shown but guarantees correct behavior.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+float nk_propertyf(struct nk_context *ctx, const char *name, float min, float val, float max, float step, float inc_per_pixel);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parameter           | Description
+--------------------|-----------------------------------------------------------
+__ctx__             | Must point to an previously initialized `nk_context` struct after calling a layouting function
+__name__            | String used both as a label as well as a unique identifier
+__min__             | Minimum value not allowed to be underflown
+__val__             | Current float value to be modified and returned
+__max__             | Maximum value not allowed to be overflown
+__step__            | Increment added and subtracted on increment and decrement button
+__inc_per_pixel__   | Value per pixel added or subtracted on dragging
+Returns the new modified float value
+#### nk_propertyd
+Float property modifing a passed in value and returning the new value
+!!! WARNING
+    To generate a unique property ID using the same label make sure to insert
+    a `#` at the beginning. It will not be shown but guarantees correct behavior.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
+float nk_propertyd(struct nk_context *ctx, const char *name, double min, double val, double max, double step, double inc_per_pixel);
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Parameter           | Description
+--------------------|-----------------------------------------------------------
+__ctx__             | Must point to an previously initialized `nk_context` struct after calling a layouting function
+__name__            | String used both as a label as well as a unique identifier
+__min__             | Minimum value not allowed to be underflown
+__val__             | Current double value to be modified and returned
+__max__             | Maximum value not allowed to be overflown
+__step__            | Increment added and subtracted on increment and decrement button
+__inc_per_pixel__   | Value per pixel added or subtracted on dragging
+Returns the new modified double value
         -XXX.XXX-  X...X  -         X...X         -X....X           -           X....X"
 X...XXXXXXXXXXXXX...X -           "
-Offset --*/
 ## License
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~none
    ------------------------------------------------------------------------------
@@ -2068,12 +2255,20 @@ Offset --*/
 -[date]: date on which the change has been pushed
 -[x.yy.zz]: Numerical version string representation. Each version number on the right
             resets back to zero if version on the left is incremented.
-   - [x]: Major version with API and library breaking
+   - [x]: Major version with API and library breaking changes
    - [yy]: Minor version with non-breaking API and library changes
    - [zz]: Bug fix version with no direct changes to API
-- 2017/01/12 (3.00.2) - Added `nk_group_begin_titled` for separed group identifier and title
-- 2017/01/07 (3.00.1) - Started to change documentation style
-- 2017/01/05 (3.00.0) - BREAKING CHANGE: The previous color picker API was broken
+- 2018/04/01 (4.00.1) - Fixed calling `nk_convert` multiple time per single frame
+- 2018/04/01 (4.00.0) - BREAKING CHANGE: nk_draw_list_clear no longer tries to
+                        clear provided buffers. So make sure to either free
+                        or clear each passed buffer after calling nk_convert.
+- 2018/02/23 (3.00.6) - Fixed slider dragging behavior
+- 2018/01/31 (3.00.5) - Fixed overcalculation of cursor data in font baking process
+- 2018/01/31 (3.00.4) - Removed name collision with stb_truetype
+- 2018/01/28 (3.00.3) - Fixed panel window border drawing bug
+- 2018/01/12 (3.00.2) - Added `nk_group_begin_titled` for separed group identifier and title
+- 2018/01/07 (3.00.1) - Started to change documentation style
+- 2018/01/05 (3.00.0) - BREAKING CHANGE: The previous color picker API was broken
                        because of conversions between float and byte color representation.
                        Color pickers now use floating point values to represent
                        HSV values. To get back the old behavior I added some additional
@@ -2347,6 +2542,7 @@ Big thank you to Omar Cornut (ocornut@github) for his [imgui library](https://gi
 giving me the inspiration for this library, Casey Muratori for handmade hero
 and his original immediate mode graphical user interface idea and Sean
 Barret for his amazing single header libraries which restored my faith
-in libraries and brought me to create some of my own.
+in libraries and brought me to create some of my own. Finally Apoorva Joshi
+for his single header file packer.
 <script>markdeepOptions={tocStyle:'medium'};</script>
 <!-- Markdeep: --><script src='https://casual-effects.com/markdeep/latest/markdeep.min.js?'></script>
